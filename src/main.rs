@@ -17,15 +17,25 @@ fn main() {
 
     let connection = PgConnection::establish(&db_url).expect("Error connecting to database");
 
-    use self::models::Post;
-
+    use self::models::{NewPost, Post};
+    use self::schema::posts;
     use self::schema::posts::dsl::*;
+
+    let new_post = NewPost {
+        title: "A new post title",
+        slug: "a-new-post",
+        body: "This is a new post",
+    };
+    diesel::insert_into(posts::table)
+        .values(&new_post)
+        .get_result::<Post>(&connection)
+        .expect("Error saving new post");
 
     let results = posts
         .load::<Post>(&connection)
-        .expect("Error loading posts")
-        .iter()
-        .map(|post| {
-            println!("{}", post.title);
-        });
+        .expect("Error loading posts");
+
+    for post in results {
+        println!("{}", post.title);
+    }
 }
