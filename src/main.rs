@@ -22,21 +22,45 @@ use self::models::{NewPost, NewPostHandler, Post};
 use self::schema::posts;
 use self::schema::posts::dsl::*;
 
-#[get("/tera-test")]
-async fn tera_init(template_manager: web::Data<tera::Tera>) -> impl Responder {
-    let mut context = tera::Context::new();
-
-    HttpResponse::Ok()
-        .content_type("text/html")
-        .body(template_manager.render("index.html", &context).unwrap())
-}
-
 #[get("/")]
-async fn index(pool: web::Data<DbPool>) -> impl Responder {
+async fn index(pool: web::Data<DbPool>, template_manager: web::Data<tera::Tera>) -> impl Responder {
     let conn = pool.get().expect("Error connecting db");
 
     match web::block(move || posts.load::<Post>(&conn)).await {
-        Ok(data) => HttpResponse::Ok().body(format!("{:?}", data)),
+        Ok(data) => {
+            let posts_data = data.unwrap();
+            let mut context = tera::Context::new();
+
+            context.insert("posts", &posts_data);
+            HttpResponse::Ok().body(template_manager.render("index.html", &context).unwrap())
+        }
+        Err(err) => HttpResponse::Ok().body("Error receiving data"),
+    }
+}
+
+#[get("/blog/{blog_slug}")]
+async fn get_post(
+    pool: web::Data<DbPool>,
+    template_manager: web::Data<tera::Tera>,
+    blog_slug: web::Path<String>,
+) -> impl Responder {
+    let conn = pool.get().expect("Error connecting db");
+
+    let url_slug = blog_slug.into_inner();
+
+    match web::block(move || posts.filter(slug.eq(url_slug)).load::<Post>(&conn)).await {
+        Ok(data) => {
+            let data = data.unwrap();
+
+            if data.len() == 0 {
+                return HttpResponse::NotFound().finish();
+            }
+            let data = &data[0];
+            let mut context = tera::Context::new();
+
+            context.insert("post", data);
+            HttpResponse::Ok().body(template_manager.render("post.html", &context).unwrap())
+        }
         Err(err) => HttpResponse::Ok().body("Error receiving data"),
     }
 }
@@ -68,7 +92,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(index)
             .service(new_post)
-            .service(tera_init)
+            .service(get_post)
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(tera))
     })

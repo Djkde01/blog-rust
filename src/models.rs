@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Queryable)]
+#[derive(Queryable, Debug, Deserialize, Serialize)]
 pub struct SimplifiedPost {
     pub title: String,
     pub body: String,
 }
 
-#[derive(Queryable, Debug)]
+#[derive(Queryable, Debug, Deserialize, Serialize)]
 pub struct Post {
     pub id: i32,
     pub title: String,

@@ -8,16 +8,11 @@
   </head>
   <body>
     <main>
-      {% for post in posts %}
       <article>
-        <a href="/blog/{{post.slug}}">
-          <h1>{{post.title}}</h1>
-        </a>
-
-        <p>{{post.body | truncate(lenght=15)}}...</p>
+        <h1>{{post.title}}</h1>
+        <p>{{post.body}}</p>
       </article>
-
-      {% endfor %}
+      <a href="/">Return to homepage</a>
     </main>
   </body>
 </html>
