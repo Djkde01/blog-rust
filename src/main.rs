@@ -6,6 +6,7 @@ pub mod schema;
 
 use dotenv::dotenv;
 use std::env;
+use tera::Tera;
 
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
@@ -20,6 +21,15 @@ pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 use self::models::{NewPost, NewPostHandler, Post};
 use self::schema::posts;
 use self::schema::posts::dsl::*;
+
+#[get("/tera-test")]
+async fn tera_init(template_manager: web::Data<tera::Tera>) -> impl Responder {
+    let mut context = tera::Context::new();
+
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(template_manager.render("index.html", &context).unwrap())
+}
 
 #[get("/")]
 async fn index(pool: web::Data<DbPool>) -> impl Responder {
@@ -54,10 +64,13 @@ async fn main() -> std::io::Result<()> {
         .expect("Pool can't be created");
 
     HttpServer::new(move || {
+        let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
         App::new()
             .service(index)
             .service(new_post)
+            .service(tera_init)
             .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(tera))
     })
     .bind(("0.0.0.0", 9900))
     .unwrap()
