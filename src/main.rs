@@ -10,32 +10,29 @@ use std::env;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 
-fn main() {
+use diesel::r2d2::Pool;
+use diesel::r2d2::{self, ConnectionManager};
+
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+
+#[get("/")]
+async fn hello_world() -> impl Responder {
+    HttpResponse::Ok().body("Wenas las tengan")
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
     dotenv().ok();
+    let db_url = env::var("DATABASE_URL").expect("db url not found");
 
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let connection = ConnectionManager::<PgConnection>::new(db_url);
+    let pool = Pool::builder()
+        .build(connection)
+        .expect("Pool can't be created");
 
-    let connection = PgConnection::establish(&db_url).expect("Error connecting to database");
-
-    use self::models::{NewPost, Post};
-    use self::schema::posts;
-    use self::schema::posts::dsl::*;
-
-    let new_post = NewPost {
-        title: "A new post title",
-        slug: "a-new-post",
-        body: "This is a new post",
-    };
-    diesel::insert_into(posts::table)
-        .values(&new_post)
-        .get_result::<Post>(&connection)
-        .expect("Error saving new post");
-
-    let results = posts
-        .load::<Post>(&connection)
-        .expect("Error loading posts");
-
-    for post in results {
-        println!("{}", post.title);
-    }
+    HttpServer::new(move || App::new().service(hello_world).app_data(pool.clone()))
+        .bind(("0.0.0.0", 9900))
+        .unwrap()
+        .run()
+        .await
 }
