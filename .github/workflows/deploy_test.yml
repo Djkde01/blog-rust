@@ -14,3 +14,6 @@ jobs:
           heroku_app_name: "blog-rust" #Must be unique in Heroku
           heroku_email: "djkde.co@gmail.com"
           usedocker: true
+      - uses: grafana/k6-action@v0.2.0
+        with:
+          filename: tests/stress.js
